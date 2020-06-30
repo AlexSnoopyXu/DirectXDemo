@@ -96,5 +96,11 @@ namespace DX
 
 		// 用于显示方向的转换。
 		DirectX::XMFLOAT4X4								m_orientationTransform3D;
+
+		void LogAdapter();
+
+		void LogAdapterOutput(IDXGIAdapter* adapter);
+
+		void LogAdapterOutputModes(IDXGIOutput* output, DXGI_FORMAT format);
 	};
 }

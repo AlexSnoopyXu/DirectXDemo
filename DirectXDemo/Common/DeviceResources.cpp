@@ -132,6 +132,8 @@ void DX::DeviceResources::CreateDeviceResources()
 
 	DX::ThrowIfFailed(hr);
 
+	LogAdapter();
+
 	// 创建命令队列。
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -591,4 +593,71 @@ void DX::DeviceResources::GetHardwareAdapter(IDXGIAdapter1** ppAdapter)
 	}
 
 	*ppAdapter = adapter.Detach();
+}
+
+void DX::DeviceResources::LogAdapter()
+{
+	UINT i = 0;
+	IDXGIAdapter* adapter = nullptr;
+	std::vector<IDXGIAdapter*> adapterList;
+	while (m_dxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND)
+	{
+		DXGI_ADAPTER_DESC desc;
+		adapter->GetDesc(&desc);
+
+		std::wstring text = L"***Adapter : ";
+		text += desc.Description;
+		text += L"\n";
+
+		OutputDebugString(text.c_str());
+
+		adapterList.push_back(adapter);
+		++i;
+	}
+
+	for (size_t i = 0 ; i < adapterList.size(); ++i) 
+	{
+		LogAdapterOutput(adapterList[i]);
+		adapterList[i]->Release();
+	}
+}
+
+void DX::DeviceResources::LogAdapterOutput(IDXGIAdapter* adapter)
+{
+	UINT i = 0;
+	IDXGIOutput* output = nullptr;
+	while (adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND)
+	{
+		DXGI_OUTPUT_DESC desc;
+		output->GetDesc(&desc);
+
+		std::wstring text = L"***Output : ";
+		text += desc.DeviceName;
+		text += L"\n";
+		OutputDebugString(text.c_str());
+
+		LogAdapterOutputModes(output, DXGI_FORMAT_B8G8R8A8_UNORM);
+
+		output->Release();
+		++i;
+	}
+}
+
+void DX::DeviceResources::LogAdapterOutputModes(IDXGIOutput* output, DXGI_FORMAT format)
+{
+	UINT count = 0;
+	UINT flags = 0;
+
+	// 获取显示模式列表, 以nullptr作为参数来获取符合条件的显示模式个数
+	output->GetDisplayModeList(format, flags, &count, nullptr);
+
+	std::vector<DXGI_MODE_DESC> modeList(count);
+	output->GetDisplayModeList(format, flags, &count, &modeList[0]);
+
+	for (auto & x : modeList)
+	{
+		UINT n = x.RefreshRate.Numerator;
+		UINT d = x.RefreshRate.Denominator;
+
+	}
 }
