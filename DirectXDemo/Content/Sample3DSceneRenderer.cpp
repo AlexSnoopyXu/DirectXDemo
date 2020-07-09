@@ -81,9 +81,18 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	// 加载着色器之后创建管道状态。
 	auto createPipelineStateTask = (createPSTask && createVSTask).then([this]() {
 
+		// 顶点结构体描述，结构体中有几个成员这里就需要有几个描述
 		static const D3D12_INPUT_ELEMENT_DESC inputLayout[] =
 		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ 
+				"POSITION", // 语义，对应顶点着色器中的签名
+				0, // 索引，语义后面加的数，比如COLOR0和COLOR一样的
+				DXGI_FORMAT_R32G32B32_FLOAT,  // 数据格式，这里是3d，32位浮点
+				0,  // 输入槽索引，0-15，默认使用1。输入装配阶段就是通过这个来输入数据
+				0,  // 特定输入槽中起始位置偏移量
+				D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,  // 默认就写这个
+				0  // 默认写0，这个配合上面那个参数，用来做实例化技术
+			},
 			{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
 
@@ -144,42 +153,45 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 		// 在 GPU 的默认堆中创建顶点缓冲区资源并使用上载堆将顶点数据复制到其中。
 		// 在 GPU 使用完之前，不得释放上载资源。
+		// 因为CPU不能直接向默认堆中写数据，所以需要创建一个上传堆用来将内存数据写入显存对应的默认堆中
 		Microsoft::WRL::ComPtr<ID3D12Resource> vertexBufferUpload;
 
-		CD3DX12_HEAP_PROPERTIES defaultHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
-		CD3DX12_RESOURCE_DESC vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
-			&defaultHeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&vertexBufferDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_vertexBuffer)));
+		m_vertexBuffer = DX::CreateDefaultBuffer(d3dDevice, m_commandList.Get(), cubeVertices, vertexBufferSize, vertexBufferUpload);
 
-		CD3DX12_HEAP_PROPERTIES uploadHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
-			&uploadHeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&vertexBufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&vertexBufferUpload)));
+		//CD3DX12_HEAP_PROPERTIES defaultHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
+		//CD3DX12_RESOURCE_DESC vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
+		//DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
+		//	&defaultHeapProperties,
+		//	D3D12_HEAP_FLAG_NONE,
+		//	&vertexBufferDesc,
+		//	D3D12_RESOURCE_STATE_COPY_DEST,
+		//	nullptr,
+		//	IID_PPV_ARGS(&m_vertexBuffer)));
 
-        NAME_D3D12_OBJECT(m_vertexBuffer);
+		//CD3DX12_HEAP_PROPERTIES uploadHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
+		//DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
+		//	&uploadHeapProperties,
+		//	D3D12_HEAP_FLAG_NONE,
+		//	&vertexBufferDesc,
+		//	D3D12_RESOURCE_STATE_GENERIC_READ,
+		//	nullptr,
+		//	IID_PPV_ARGS(&vertexBufferUpload)));
 
-		// 将顶点缓冲区上载到 GPU。
-		{
-			D3D12_SUBRESOURCE_DATA vertexData = {};
-			vertexData.pData = reinterpret_cast<BYTE*>(cubeVertices);
-			vertexData.RowPitch = vertexBufferSize;
-			vertexData.SlicePitch = vertexData.RowPitch;
+  //      NAME_D3D12_OBJECT(m_vertexBuffer);
 
-			UpdateSubresources(m_commandList.Get(), m_vertexBuffer.Get(), vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
+		//// 将顶点缓冲区上载到 GPU。
+		//{
+		//	D3D12_SUBRESOURCE_DATA vertexData = {};
+		//	vertexData.pData = reinterpret_cast<BYTE*>(cubeVertices);  // 要复制的数据
+		//	vertexData.RowPitch = vertexBufferSize;  // 对于缓冲区而言就是大小
+		//	vertexData.SlicePitch = vertexData.RowPitch;  // 这个和上面那个一样
 
-			CD3DX12_RESOURCE_BARRIER vertexBufferResourceBarrier =
-				CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-			m_commandList->ResourceBarrier(1, &vertexBufferResourceBarrier);
-		}
+		//	UpdateSubresources(m_commandList.Get(), m_vertexBuffer.Get(), vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
+
+		//	CD3DX12_RESOURCE_BARRIER vertexBufferResourceBarrier =
+		//		CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+		//	m_commandList->ResourceBarrier(1, &vertexBufferResourceBarrier);
+		//}
 
 		// 加载网格索引。每三个索引表示要在屏幕上呈现的三角形。
 		// 例如: 0,2,1 表示顶点缓冲区中的索引为 0、2 和 1 的顶点构成
@@ -221,38 +233,40 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		// 在 GPU 使用完之前，不得释放上载资源。
 		Microsoft::WRL::ComPtr<ID3D12Resource> indexBufferUpload;
 
-		CD3DX12_RESOURCE_DESC indexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
-			&defaultHeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&indexBufferDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_indexBuffer)));
+		m_indexBuffer = DX::CreateDefaultBuffer(d3dDevice, m_commandList.Get(), cubeIndices, indexBufferSize, indexBufferUpload);
 
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
-			&uploadHeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&indexBufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&indexBufferUpload)));
+		//CD3DX12_RESOURCE_DESC indexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
+		//DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
+		//	&defaultHeapProperties,
+		//	D3D12_HEAP_FLAG_NONE,
+		//	&indexBufferDesc,
+		//	D3D12_RESOURCE_STATE_COPY_DEST,
+		//	nullptr,
+		//	IID_PPV_ARGS(&m_indexBuffer)));
 
-		NAME_D3D12_OBJECT(m_indexBuffer);
+		//DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
+		//	&uploadHeapProperties,
+		//	D3D12_HEAP_FLAG_NONE,
+		//	&indexBufferDesc,
+		//	D3D12_RESOURCE_STATE_GENERIC_READ,
+		//	nullptr,
+		//	IID_PPV_ARGS(&indexBufferUpload)));
 
-		// 将索引缓冲区上载到 GPU。
-		{
-			D3D12_SUBRESOURCE_DATA indexData = {};
-			indexData.pData = reinterpret_cast<BYTE*>(cubeIndices);
-			indexData.RowPitch = indexBufferSize;
-			indexData.SlicePitch = indexData.RowPitch;
+		//NAME_D3D12_OBJECT(m_indexBuffer);
 
-			UpdateSubresources(m_commandList.Get(), m_indexBuffer.Get(), indexBufferUpload.Get(), 0, 0, 1, &indexData);
+		//// 将索引缓冲区上载到 GPU。
+		//{
+		//	D3D12_SUBRESOURCE_DATA indexData = {};
+		//	indexData.pData = reinterpret_cast<BYTE*>(cubeIndices);
+		//	indexData.RowPitch = indexBufferSize;
+		//	indexData.SlicePitch = indexData.RowPitch;
 
-			CD3DX12_RESOURCE_BARRIER indexBufferResourceBarrier =
-				CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
-			m_commandList->ResourceBarrier(1, &indexBufferResourceBarrier);
-		}
+		//	UpdateSubresources(m_commandList.Get(), m_indexBuffer.Get(), indexBufferUpload.Get(), 0, 0, 1, &indexData);
+
+		//	CD3DX12_RESOURCE_BARRIER indexBufferResourceBarrier =
+		//		CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+		//	m_commandList->ResourceBarrier(1, &indexBufferResourceBarrier);
+		//}
 
 		// 为常量缓冲区创建描述符堆。
 		{
@@ -266,6 +280,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
             NAME_D3D12_OBJECT(m_cbvHeap);
 		}
 
+		CD3DX12_HEAP_PROPERTIES uploadHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
 		CD3DX12_RESOURCE_DESC constantBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(DX::c_frameCount * c_alignedConstantBufferSize);
 		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
 			&uploadHeapProperties,

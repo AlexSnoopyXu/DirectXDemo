@@ -40,6 +40,63 @@ namespace DX
 		return floorf(dips * dpi / dipsPerInch + 0.5f); // 舍入到最接近的整数。
 	}
 
+	// 上传顶点数据至显存函数
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(
+		ID3D12Device* device,
+		ID3D12GraphicsCommandList* commandList,
+		const void* initData,
+		UINT64 byteSize,
+		Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer
+	)
+	{
+		Microsoft::WRL::ComPtr<ID3D12Resource> defaultBuffer;
+
+		// 创建默认堆资源
+		ThrowIfFailed(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(defaultBuffer.GetAddressOf())
+		));
+
+		// 创建上传堆
+		ThrowIfFailed(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(uploadBuffer.GetAddressOf())
+		));
+
+		// 描述想复制到默认缓冲区中的数据
+		D3D12_SUBRESOURCE_DATA subRecourceData = {};
+		subRecourceData.pData = initData;
+		subRecourceData.RowPitch = byteSize;
+		subRecourceData.SlicePitch = subRecourceData.RowPitch;
+
+		commandList->ResourceBarrier(1,
+			&CD3DX12_RESOURCE_BARRIER::Transition(
+				defaultBuffer.Get(),
+				D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_STATE_COPY_DEST
+			));
+
+		// 复制数据命令
+		UpdateSubresources<1>(commandList, defaultBuffer.Get(), uploadBuffer.Get(), 0, 0, 1, &subRecourceData);
+
+		commandList->ResourceBarrier(1,
+			&CD3DX12_RESOURCE_BARRIER::Transition(
+				defaultBuffer.Get(),
+				D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_STATE_COPY_DEST
+			));
+
+		return defaultBuffer;
+	}
+
 	// 向对象分配名称以帮助调试。
 #if defined(_DEBUG)
 	inline void SetName(ID3D12Object* pObject, LPCWSTR name)
