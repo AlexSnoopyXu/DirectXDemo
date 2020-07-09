@@ -23,6 +23,9 @@ namespace DirectXDemo
 		void StopTracking();
 		bool IsTracking() { return m_tracking; }
 
+
+	public:
+		void Move();
 	private:
 		void LoadState();
 		void Rotate(float radians);

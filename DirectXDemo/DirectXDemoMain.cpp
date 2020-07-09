@@ -90,3 +90,8 @@ void DirectXDemoMain::OnDeviceRemoved()
 	m_sceneRenderer->SaveState();
 	m_sceneRenderer = nullptr;
 }
+
+void DirectXDemoMain::OnMove()
+{
+	m_sceneRenderer->Move();
+}

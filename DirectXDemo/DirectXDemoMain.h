@@ -20,6 +20,8 @@ namespace DirectXDemo
 		void OnResuming();
 		void OnDeviceRemoved();
 
+		void OnMove();
+
 	private:
 		// TODO: 替换为你自己的内容呈现器。
 		std::unique_ptr<Sample3DSceneRenderer> m_sceneRenderer;

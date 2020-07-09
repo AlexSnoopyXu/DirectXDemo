@@ -4,6 +4,7 @@
 #include "..\Common\DirectXHelper.h"
 #include <ppltasks.h>
 #include <synchapi.h>
+#include <math.h>
 
 using namespace DirectXDemo;
 
@@ -20,7 +21,7 @@ Platform::String^ TrackingKey = "Tracking";
 // 从文件中加载顶点和像素着色器，然后实例化立方体几何图形。
 Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceResources>& deviceResources) :
 	m_loadingComplete(false),
-	m_radiansPerSecond(XM_PIDIV4),	// 每秒旋转 45 度
+	m_radiansPerSecond(XM_PIDIV4 / 2),	// 每秒旋转 45 度
 	m_angle(0),
 	m_tracking(false),
 	m_mappedConstantBuffer(nullptr),
@@ -116,17 +117,27 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		DX::ThrowIfFailed(d3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_deviceResources->GetCommandAllocator(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
         NAME_D3D12_OBJECT(m_commandList);
 
+		//// 立方体顶点。每个顶点都有一个位置和一个颜色。
+		//VertexPositionColor cubeVertices[] =
+		//{
+		//	{ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(0.0f, 0.0f, 0.0f) },
+		//	{ XMFLOAT3(-0.5f, -0.5f,  0.5f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+		//	{ XMFLOAT3(-0.5f,  0.5f, -0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+		//	{ XMFLOAT3(-0.5f,  0.5f,  0.5f), XMFLOAT3(0.0f, 1.0f, 1.0f) },
+		//	{ XMFLOAT3(0.5f, -0.5f, -0.5f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+		//	{ XMFLOAT3(0.5f, -0.5f,  0.5f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
+		//	{ XMFLOAT3(0.5f,  0.5f, -0.5f), XMFLOAT3(1.0f, 1.0f, 0.0f) },
+		//	{ XMFLOAT3(0.5f,  0.5f,  0.5f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+		//};
+
 		// 立方体顶点。每个顶点都有一个位置和一个颜色。
 		VertexPositionColor cubeVertices[] =
 		{
-			{ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(0.0f, 0.0f, 0.0f) },
-			{ XMFLOAT3(-0.5f, -0.5f,  0.5f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-			{ XMFLOAT3(-0.5f,  0.5f, -0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-			{ XMFLOAT3(-0.5f,  0.5f,  0.5f), XMFLOAT3(0.0f, 1.0f, 1.0f) },
-			{ XMFLOAT3(0.5f, -0.5f, -0.5f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-			{ XMFLOAT3(0.5f, -0.5f,  0.5f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
-			{ XMFLOAT3(0.5f,  0.5f, -0.5f), XMFLOAT3(1.0f, 1.0f, 0.0f) },
-			{ XMFLOAT3(0.5f,  0.5f,  0.5f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+			{ XMFLOAT3(-0.5f, 0, -0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT3(0.5f, 0,  -0.5f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(0.5f,  0, 0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT3(-0.5f,  0,  0.5f), XMFLOAT3(0.0f, 1.0f, 1.0f) },
+			{ XMFLOAT3(0,  (sqrt(2) / 4),  0), XMFLOAT3(1.0f, 1.0f, 1.0f) },
 		};
 
 		const UINT vertexBufferSize = sizeof(cubeVertices);
@@ -173,25 +184,35 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		// 加载网格索引。每三个索引表示要在屏幕上呈现的三角形。
 		// 例如: 0,2,1 表示顶点缓冲区中的索引为 0、2 和 1 的顶点构成
 		// 此网格的第一个三角形。
+		//unsigned short cubeIndices[] =
+		//{
+		//	0, 2, 1, // -x
+		//	1, 2, 3,
+
+		//	4, 5, 6, // +x
+		//	5, 7, 6,
+
+		//	0, 1, 5, // -y
+		//	0, 5, 4,
+
+		//	2, 6, 7, // +y
+		//	2, 7, 3,
+
+		//	0, 4, 6, // -z
+		//	0, 6, 2,
+
+		//	1, 3, 7, // +z
+		//	1, 7, 5,
+		//};
+
 		unsigned short cubeIndices[] =
 		{
-			0, 2, 1, // -x
-			1, 2, 3,
-
-			4, 5, 6, // +x
-			5, 7, 6,
-
-			0, 1, 5, // -y
-			0, 5, 4,
-
-			2, 6, 7, // +y
-			2, 7, 3,
-
-			0, 4, 6, // -z
-			0, 6, 2,
-
-			1, 3, 7, // +z
-			1, 7, 5,
+			0,1,3,
+			1,2,3,
+			3,4,2,
+			0,4,3,
+			1,4,0,
+			2,4,1,
 		};
 
 		const UINT indexBufferSize = sizeof(cubeIndices);
@@ -401,11 +422,17 @@ void Sample3DSceneRenderer::LoadState()
 	}
 }
 
+void Sample3DSceneRenderer::Move()
+{
+	// 准备将更新的模型矩阵传递到着色器。
+	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixTranslation(1,0,0)));
+}
+
 // 将 3D 立方体模型旋转一定数量的弧度。
 void Sample3DSceneRenderer::Rotate(float radians)
 {
 	// 准备将更新的模型矩阵传递到着色器。
-	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixRotationY(radians)));
+	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixRotationY(radians) /** XMMatrixTranslation(1, 0, 0)*/));
 }
 
 void Sample3DSceneRenderer::StartTracking()

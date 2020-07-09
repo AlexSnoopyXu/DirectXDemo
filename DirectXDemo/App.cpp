@@ -66,6 +66,9 @@ void App::SetWindow(CoreWindow^ window)
 	window->Closed += 
 		ref new TypedEventHandler<CoreWindow^, CoreWindowEventArgs^>(this, &App::OnWindowClosed);
 
+	window->KeyDown += 
+		ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &App::OnKeyDown);
+
 	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
 
 	currentDisplayInformation->DpiChanged +=
@@ -174,6 +177,18 @@ void App::OnVisibilityChanged(CoreWindow^ sender, VisibilityChangedEventArgs^ ar
 void App::OnWindowClosed(CoreWindow^ sender, CoreWindowEventArgs^ args)
 {
 	m_windowClosed = true;
+}
+
+void App::OnKeyDown(CoreWindow^ sender, KeyEventArgs^ args)
+{
+	auto a = args->VirtualKey;
+	auto b = args->KeyStatus;
+	args->VirtualKey;
+
+	if (args->VirtualKey == Windows::System::VirtualKey::Right) 
+	{
+		m_main->OnMove();
+	}
 }
 
 // DisplayInformation 事件处理程序。

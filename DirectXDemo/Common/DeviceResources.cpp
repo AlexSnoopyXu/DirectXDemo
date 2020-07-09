@@ -107,11 +107,12 @@ void DX::DeviceResources::CreateDeviceResources()
 	DX::ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&m_dxgiFactory)));
 
 	ComPtr<IDXGIAdapter1> adapter;
+	// 获取一个支持12的设备
 	GetHardwareAdapter(&adapter);
 
 	// 创建 Direct3D 12 API 设备对象
 	HRESULT hr = D3D12CreateDevice(
-		adapter.Get(),					// 硬件适配器。
+		nullptr, //adapter.Get(),					// 硬件适配器。nullptr参数就会默认使用主适配器
 		D3D_FEATURE_LEVEL_11_0,			// 此应用可以支持的最低功能级别。
 		IID_PPV_ARGS(&m_d3dDevice)		// 返回创建的 Direct3D 设备。
 		);
@@ -119,7 +120,7 @@ void DX::DeviceResources::CreateDeviceResources()
 #if defined(_DEBUG)
 	if (FAILED(hr))
 	{
-		// 如果初始化失败，则回退到 WARP 设备。
+		// 如果初始化失败，则回退到 WARP 设备。 就是一种高速软件光栅化程序
 		// 有关 WARP 的详细信息，请参阅: 
 		// https://go.microsoft.com/fwlink/?LinkId=286690
 
@@ -142,7 +143,7 @@ void DX::DeviceResources::CreateDeviceResources()
 	DX::ThrowIfFailed(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
 	NAME_D3D12_OBJECT(m_commandQueue);
 
-	// 为呈现器目标视图和深度模具视图创建描述符堆。
+	// 为呈现器目标视图和深度模板视图创建描述符堆。
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
 	rtvHeapDesc.NumDescriptors = c_frameCount;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
