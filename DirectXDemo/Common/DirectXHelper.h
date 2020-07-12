@@ -53,9 +53,9 @@ namespace DX
 
 		// 创建默认堆资源
 		ThrowIfFailed(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), // 资源堆类型
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+			&CD3DX12_RESOURCE_DESC::Buffer(byteSize), // 简化创建资源描述的方法
 			D3D12_RESOURCE_STATE_COMMON,
 			nullptr,
 			IID_PPV_ARGS(defaultBuffer.GetAddressOf())
@@ -73,9 +73,9 @@ namespace DX
 
 		// 描述想复制到默认缓冲区中的数据
 		D3D12_SUBRESOURCE_DATA subRecourceData = {};
-		subRecourceData.pData = initData;
-		subRecourceData.RowPitch = byteSize;
-		subRecourceData.SlicePitch = subRecourceData.RowPitch;
+		subRecourceData.pData = initData;  // 想要复制的数据
+		subRecourceData.RowPitch = byteSize;  // 这里填数据大小就行
+		subRecourceData.SlicePitch = subRecourceData.RowPitch;  // 同上
 
 		commandList->ResourceBarrier(1,
 			&CD3DX12_RESOURCE_BARRIER::Transition(
@@ -85,6 +85,7 @@ namespace DX
 			));
 
 		// 复制数据命令
+		// 这个函数会先从内存中复制数据到上传堆中，然后调用CopyBufferRegion函数将数据复制到默认堆中
 		UpdateSubresources<1>(commandList, defaultBuffer.Get(), uploadBuffer.Get(), 0, 0, 1, &subRecourceData);
 
 		commandList->ResourceBarrier(1,

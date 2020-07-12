@@ -49,8 +49,15 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		CD3DX12_DESCRIPTOR_RANGE range;
 		CD3DX12_ROOT_PARAMETER parameter;
 
-		range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-		parameter.InitAsDescriptorTable(1, &range, D3D12_SHADER_VISIBILITY_VERTEX);
+		// 创建只有一个CBV的描述符
+		range.Init(
+			D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 
+			1, // 表中描述符数量
+			0  // 绑定到的基准着色器id, 例如(b0)
+		);
+		parameter.InitAsDescriptorTable(
+			1, // 描述符区域数量
+			&range, D3D12_SHADER_VISIBILITY_VERTEX);
 
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
 			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | // 只有输入汇编程序阶段才需要访问常量缓冲区。
@@ -62,6 +69,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		CD3DX12_ROOT_SIGNATURE_DESC descRootSignature;
 		descRootSignature.Init(1, &parameter, 0, nullptr, rootSignatureFlags);
 
+		// 创建仅含一个slot的签名，该slot指向一个由单个常量缓冲区组成的描述符区域
 		ComPtr<ID3DBlob> pSignature;
 		ComPtr<ID3DBlob> pError;
 		DX::ThrowIfFailed(D3D12SerializeRootSignature(&descRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, pSignature.GetAddressOf(), pError.GetAddressOf()));
@@ -96,12 +104,23 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
 
+		// 流水线状态描述
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC state = {};
 		state.InputLayout = { inputLayout, _countof(inputLayout) };
 		state.pRootSignature = m_rootSignature.Get();
         state.VS = CD3DX12_SHADER_BYTECODE(&m_vertexShader[0], m_vertexShader.size());
         state.PS = CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size());
-		state.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+		//state.DS 域着色器
+		//state.HS 外壳着色器
+		//state.GS 几何着色器
+
+		// 光栅化设置
+		CD3DX12_RASTERIZER_DESC rasterizerDesc(D3D12_DEFAULT);
+		//rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;  // 实体渲染
+		rasterizerDesc.FillMode = D3D12_FILL_MODE_WIREFRAME;    // 线条渲染
+		rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK; // 背面剔除
+		state.RasterizerState = rasterizerDesc;
+
 		state.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		state.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		state.SampleMask = UINT_MAX;
@@ -292,7 +311,8 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
         NAME_D3D12_OBJECT(m_constantBuffer);
 
-		// 创建常量缓冲区视图以访问上载缓冲区。
+		// 创建常量缓冲区视图以访问上载缓冲区。因为CPU需要每帧都去更新这里的东西，比如旋转，所以放在上传堆中
+		// 常量缓冲区大小必须为硬件最小分配大小的整数倍（256b）
 		D3D12_GPU_VIRTUAL_ADDRESS cbvGpuAddress = m_constantBuffer->GetGPUVirtualAddress();
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvCpuHandle(m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
 		m_cbvDescriptorSize = d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -313,6 +333,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		DX::ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_mappedConstantBuffer)));
 		ZeroMemory(m_mappedConstantBuffer, DX::c_frameCount * c_alignedConstantBufferSize);
 		// 应用关闭之前，我们不会对此取消映射。在资源生命周期内使对象保持映射状态是可行的。
+		// 如果想取消映射可以调用Unmap函数
 
 		// 关闭命令列表并执行它，以开始将顶点/索引缓冲区复制到 GPU 的默认堆中。
 		DX::ThrowIfFailed(m_commandList->Close());
@@ -320,13 +341,13 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		m_deviceResources->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
 		// 创建顶点/索引缓冲区视图。
-		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-		m_vertexBufferView.StrideInBytes = sizeof(VertexPositionColor);
-		m_vertexBufferView.SizeInBytes = sizeof(cubeVertices);
+		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress(); // 待创建资源缓冲区虚地址；用GetGPUVirtualAddress获取
+		m_vertexBufferView.StrideInBytes = sizeof(VertexPositionColor);  // 每个元素所占空间
+		m_vertexBufferView.SizeInBytes = sizeof(cubeVertices);  // 缓冲区大小
 
 		m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
 		m_indexBufferView.SizeInBytes = sizeof(cubeIndices);
-		m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+		m_indexBufferView.Format = DXGI_FORMAT_R16_UINT; // 索引格式
 
 		// 等待命令列表完成执行；顶点/索引缓冲区需要在上载资源超出范围之前上载到 GPU。
 		m_deviceResources->WaitForGpu();
@@ -395,6 +416,8 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 			m_angle += static_cast<float>(timer.GetElapsedSeconds()) * m_radiansPerSecond;
 
 			Rotate(m_angle);
+			const XMFLOAT2 a(timer.GetTotalSeconds(), 0);
+			XMStoreFloat2(&m_constantBufferData.timer, XMLoadFloat2(&a));
 		}
 
 		// 更新常量缓冲区资源。
@@ -493,7 +516,9 @@ bool Sample3DSceneRenderer::Render()
 
 		// 将当前帧的常量缓冲区绑定到管道。
 		CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_deviceResources->GetCurrentFrameIndex(), m_cbvDescriptorSize);
-		m_commandList->SetGraphicsRootDescriptorTable(0, gpuHandle);
+		m_commandList->SetGraphicsRootDescriptorTable(
+			0, // 绑定的slot id
+			gpuHandle);
 
 		// 设置视区和剪刀矩形。
 		D3D12_VIEWPORT viewport = m_deviceResources->GetScreenViewport();
@@ -513,10 +538,27 @@ bool Sample3DSceneRenderer::Render()
 
 		m_commandList->OMSetRenderTargets(1, &renderTargetView, false, &depthStencilView);
 
+		// 设置图元拓扑结构为三角形列表
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+
+		// 将缓冲区视图于输入槽绑定，这样在输入装配阶段就能被GPU使用
+		// 这里并不会直接执行操作，更像是描述关系。下面DrawIndexdInstanced调用时才会真正执行操作
+		m_commandList->IASetVertexBuffers(
+			0, // 使用的起始槽ID，一个缓冲区默认为0就行
+			1, // 要绑定的缓冲区数量，与前一个参数对应；如起始值为3，绑定数5，则缓冲区依次与3,4,5,6,7号slot进行绑定
+			&m_vertexBufferView); // 缓冲区指针
+
 		m_commandList->IASetIndexBuffer(&m_indexBufferView);
-		m_commandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+
+		// 共有两种绘制函数
+		// DrawInstanced : 绘制顶点数据, 图元结构由SetPrimitiveTopology函数设置的值决定
+		// DrawIndexdInstanced : 使用索引数据绘制顶点数据
+		m_commandList->DrawIndexedInstanced(
+			36,     // 索引数量
+			1,      // 先填1
+			0,      // 起始索引
+			0,      // 调用所有索引都需要加的基值，这个方法在和批的时候使用，合并顶点于索引缓冲区
+			0);     // 先填0
 
 		// 指示呈现目标现在会用于展示命令列表完成执行的时间。
 		CD3DX12_RESOURCE_BARRIER presentResourceBarrier =

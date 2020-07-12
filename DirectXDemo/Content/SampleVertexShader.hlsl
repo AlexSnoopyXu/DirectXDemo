@@ -4,6 +4,7 @@ cbuffer ModelViewProjectionConstantBuffer : register(b0)
 	matrix model;
 	matrix view;
 	matrix projection;
+	float2 timer;
 };
 
 // 用作顶点着色器输入的每个顶点的数据。
@@ -16,7 +17,7 @@ struct VertexShaderInput
 // 通过像素着色器传递的每个像素的颜色数据。
 struct PixelShaderInput
 {
-	float4 pos : SV_POSITION;
+	float4 pos : SV_POSITION; // 在不使用几何着色器的情况下，必须使用这个语义修饰顶点数据
 	float3 color : COLOR0;
 };
 
@@ -32,8 +33,9 @@ PixelShaderInput main(VertexShaderInput input)
 	pos = mul(pos, projection);
 	output.pos = pos;
 
-	// 不加修改地传递颜色。
-	output.color = input.color;
+	const float pi = 3.1415926;
+	float s = 0.5f * sin(2 * timer.x - 0.25f * pi) + 0.5f;
+	output.color = lerp(input.color, 0.5f, s);
 
 	return output;
 }

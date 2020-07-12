@@ -8,6 +8,7 @@ namespace DirectXDemo
 		DirectX::XMFLOAT4X4 model;
 		DirectX::XMFLOAT4X4 view;
 		DirectX::XMFLOAT4X4 projection;
+		DirectX::XMFLOAT2 timer;
 	};
 
 	// 用于向顶点着色器发送每个顶点的数据。
