@@ -403,6 +403,7 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 	static const XMVECTORF32 up = { 0.0f, 1.0f, 0.0f, 0.0f };
 
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixLookAtRH(eye, at, up)));
+	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixRotationY(0)));
 }
 
 // 每个帧调用一次，旋转立方体，并计算模型和视图矩阵。
@@ -415,8 +416,8 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 			// 少量旋转立方体。
 			m_angle += static_cast<float>(timer.GetElapsedSeconds()) * m_radiansPerSecond;
 
-			Rotate(m_angle);
-			const XMFLOAT2 a(timer.GetTotalSeconds(), 0);
+			//Rotate(m_angle);
+			const XMFLOAT2 a(timer.GetElapsedSeconds(), 0);
 			XMStoreFloat2(&m_constantBufferData.timer, XMLoadFloat2(&a));
 		}
 
@@ -463,7 +464,8 @@ void Sample3DSceneRenderer::LoadState()
 void Sample3DSceneRenderer::Move()
 {
 	// 准备将更新的模型矩阵传递到着色器。
-	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixTranslation(1,0,0)));
+	
+	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMLoadFloat4x4(&m_constantBufferData.model) * XMMatrixTranslation(0.1f,0,0)));
 }
 
 // 将 3D 立方体模型旋转一定数量的弧度。

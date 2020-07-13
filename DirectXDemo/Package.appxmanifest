@@ -9,7 +9,7 @@
   <Identity
     Name="fcb7103e-0342-442f-b62c-7bca9c4201b6"
     Publisher="CN=p_jiaxinxu"
-    Version="1.0.0.0" />
+    Version="1.1.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="fcb7103e-0342-442f-b62c-7bca9c4201b6" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

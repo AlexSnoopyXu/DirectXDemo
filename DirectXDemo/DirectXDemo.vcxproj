@@ -250,6 +250,7 @@
     <ClInclude Include="Common\StepTimer.h" />
     <ClInclude Include="Content\Sample3DSceneRenderer.h" />
     <ClInclude Include="Content\ShaderStructures.h" />
+    <ClInclude Include="FrameResource.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="UploadBuffer.h" />
   </ItemGroup>

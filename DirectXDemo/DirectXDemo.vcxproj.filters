@@ -75,6 +75,9 @@
     <ClInclude Include="UploadBuffer.h">
       <Filter>通用</Filter>
     </ClInclude>
+    <ClInclude Include="FrameResource.h">
+      <Filter>通用</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />
